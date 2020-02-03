@@ -65,9 +65,6 @@ class Z51ZHYBookPDFPipeline(FilesPipeline):
 
 
 class WQXUETANGBookPipeline(object):
-    # replace: https://cmpebooks.s3.cn-north-1.amazonaws.com.cn/books/0/978-7-111-04504-1_2-3/PDF/978-7-111-04504-1_2-3_2.pdf
-    # valid: https://cmpebooks.s3.cn-north-1.amazonaws.com.cn/books/0/978-7-111-04504-1_2-3/Cover/978-7-111-04504-1_2-3_Cover1.jpg
-    # invalid: http://images.hzmedia.com.cn/11120366/yuantu/20191018144018072.jpg
     def process_item(self, item, spider):
         if re.match(r'^(.+)\/Cover\/(.+)_Cover[0-9].jpg$', item['img']) is not None:
             item['file_urls'] = [re.sub(r'^(.+)\/Cover\/(.+)_Cover[0-9].jpg$', r'\1/PDF/\2_2.pdf', item['img'])]
