@@ -6,6 +6,16 @@ from ..items import BookItem
 class CmanufSpider(scrapy.Spider):
     name = 'cmanuf'
     allowed_domains = ['cmanuf.com']
+    custom_settings = {
+        'DOWNLOADER_MIDDLEWARES': {
+            'book.middlewares.CMANUFBookDownloaderMiddleware': 543,
+        }
+        'ITEM_PIPELINES': {
+            'book.pipelines.CMANUFBookPipeline': 300,
+            'book.pipelines.CMANUFBookPDFPipeline': 600
+        }
+        'FILES_STORE': 'cmanuf/'
+    }
 
     def start_requests(self):
         url = 'http://ebooks.cmanuf.com/getBookCategoryInfo'

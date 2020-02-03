@@ -11,7 +11,7 @@ import scrapy
 import re
 
 
-class BookPipeline(object):
+class CMANUFBookPipeline(object):
     # replace: https://cmpebooks.s3.cn-north-1.amazonaws.com.cn/books/0/978-7-111-04504-1_2-3/PDF/978-7-111-04504-1_2-3_2.pdf
     # valid: https://cmpebooks.s3.cn-north-1.amazonaws.com.cn/books/0/978-7-111-04504-1_2-3/Cover/978-7-111-04504-1_2-3_Cover1.jpg
     # invalid: http://images.hzmedia.com.cn/11120366/yuantu/20191018144018072.jpg
@@ -24,7 +24,7 @@ class BookPipeline(object):
             raise DropItem('Missing pdf {} {}'.format(item['id'], item['name']))
 
 
-class BookPDFPipeline(FilesPipeline):
+class CMANUFBookPDFPipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
             'User-Agent': 'PostmanRuntime/7.22.0',

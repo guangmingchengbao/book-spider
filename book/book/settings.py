@@ -58,9 +58,9 @@ NEWSPIDER_MODULE = 'book.spiders'
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-DOWNLOADER_MIDDLEWARES = {
-   'book.middlewares.BookDownloaderMiddleware': 543,
-}
+# DOWNLOADER_MIDDLEWARES = {
+#    'book.middlewares.BookDownloaderMiddleware': 543,
+# }
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -71,11 +71,14 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
-ITEM_PIPELINES = {
-   'book.pipelines.BookPipeline': 300,
-   'book.pipelines.BookPDFPipeline': 600
-}
-FILES_STORE = 'files/'
+# ITEM_PIPELINES = {
+#    'book.pipelines.BookPipeline': 300,
+#    'book.pipelines.BookPDFPipeline': 600
+# }
+# FILES_STORE = 'files/'
+DOWNLOAD_TIMEOUT = 600
+DOWNLOAD_MAXSIZE = 0
+DOWNLOAD_WARNSIZE = 0
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
 #AUTOTHROTTLE_ENABLED = True
