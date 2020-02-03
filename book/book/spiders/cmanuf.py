@@ -9,17 +9,17 @@ class CmanufSpider(scrapy.Spider):
     custom_settings = {
         'DOWNLOADER_MIDDLEWARES': {
             'book.middlewares.CMANUFBookDownloaderMiddleware': 543,
-        }
+        },
         'ITEM_PIPELINES': {
             'book.pipelines.CMANUFBookPipeline': 300,
             'book.pipelines.CMANUFBookPDFPipeline': 600
-        }
+        },
         'FILES_STORE': 'cmanuf/'
     }
 
     def start_requests(self):
         url = 'http://ebooks.cmanuf.com/getBookCategoryInfo'
-        total = 20
+        total = 18000
         size = 20
         max_page = int(total / size) + 1
         headers = {
@@ -33,7 +33,7 @@ class CmanufSpider(scrapy.Spider):
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
         }
         for i in range(1, max_page):
-            yield scrapy.Request(url='{}?page={}&limit={}'.format(url, i, size), headers=headers,callback=self.parse)
+            yield scrapy.Request(url='{}?page={}&limit={}'.format(url, i, size), headers=headers, callback=self.parse)
 
     def parse(self, response):
         data = json.loads(response.text)
