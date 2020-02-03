@@ -429,6 +429,7 @@
 #     "SplitFiles": null
 #   }
 # }
+from Crypto.Util.Padding import pad, unpad
 import os, random, struct, base64
 from Crypto.Cipher import AES
 
@@ -436,32 +437,19 @@ from Crypto.Cipher import AES
 class AESCipher:
 
     def __init__(self, key):
-        self.key = key.encode('utf-8') #只截取16位
-        
-    def __pad(self, text):
-        """填充方式，加密内容必须为16字节的倍数，若不足则使用self.iv进行填充"""
-        text_length = len(text)
-        amount_to_pad = AES.block_size - (text_length % AES.block_size)
-        if amount_to_pad == 0:
-            amount_to_pad = AES.block_size
-        pad = chr(amount_to_pad)
-        return text + pad * amount_to_pad
-
-    def __unpad(self, text):
-        pad = ord(text[-1])
-        return text[:-pad]
+        self.key = key
 
     def encrypt(self, raw):
         """加密"""
-        raw = self.__pad(raw)
+        raw = pad(raw.encode('utf-8'), 16)
         cipher = AES.new(self.key, AES.MODE_ECB)
-        return base64.b64encode(cipher.encrypt(raw.encode('utf-8'))) 
+        return base64.b64encode(cipher.encrypt(raw)) 
 
     def decrypt(self, enc):
         """解密"""
         enc = base64.b64decode(enc)
         cipher = AES.new(self.key, AES.MODE_ECB)
-        return self.__unpad(cipher.decrypt(enc).decode('utf-8'))
+        return unpad(cipher.decrypt(enc), 16).decode('utf-8')
     
     def encrypt_file(self, in_filename, out_filename, chunksize=64*1024):
         """加密文件"""
@@ -494,17 +482,16 @@ class AESCipher:
                     chunk = infile.read(chunksize)
                     if len(chunk) == 0:
                         break
-                    chunck = base64.b64decode(str(chunk))
-                    outfile.write(self.__unpad(cipher.decrypt(chunk).decode('utf-8')))
+                    outfile.write(cipher.decrypt(chunk))
 
 
 DeviceKey = 'luTDvdLNnJe9l30y'
 Key = 'b9+gb/ggE3h7fpf80KqJ12uYMgRfB/jhTIeIB9BwtFQ='
 
-e = AESCipher('luTDvdLNnJe9l30y')
+e = AESCipher(b'luTDvdLNnJe9l30y')
 AuthorKey = e.decrypt(Key)
 print(DeviceKey)
 print(AuthorKey)
 
-a = AESCipher(AuthorKey)
-#a.decrypt_file('test_enc.pdf', 'test_dec.pdf')
+a = AESCipher(AuthorKey.encode('utf-8'))
+a.decrypt_file('test_enc.pdf', 'test_dec.pdf')
