@@ -17,3 +17,4 @@ class BookItem(scrapy.Item):
     writer = scrapy.Field() # : "机械工程手册电机工程手册编辑委员会"
     file_urls = scrapy.Field()
     files = scrapy.Field()
+    key = scrapy.Field()

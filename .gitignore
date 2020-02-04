@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Download files
+cmanuf/
+z51zhy/
+wqxuetang/
+

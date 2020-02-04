@@ -8,7 +8,7 @@
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
 import json
 from scrapy import signals
-
+from .utils import AESCipher
 
 class BookSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
@@ -60,12 +60,6 @@ class BookSpiderMiddleware(object):
 
 class CMANUFBookDownloaderMiddleware(RetryMiddleware):
     def process_response(self, request, response, spider):
-        # Called with the response returned from the downloader.
-
-        # Must either;
-        # - return a Response object
-        # - return a Request object
-        # - or raise IgnoreRequest
         headers = response.headers
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/pdf':
             return response
@@ -78,15 +72,13 @@ class CMANUFBookDownloaderMiddleware(RetryMiddleware):
 
 
 class Z51ZHYBookDownloaderMiddleware(RetryMiddleware):
+    aes = AESCipher(b'luTDvdLNnJe9l30y')
     def process_response(self, request, response, spider):
-        # Called with the response returned from the downloader.
-
-        # Must either;
-        # - return a Response object
-        # - return a Request object
-        # - or raise IgnoreRequest
         headers = response.headers
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/pdf':
+            author_key = self.aes.decrypt(response.meta['key'])
+            aes = AESCipher(author_key.encode('utf-8'))
+            response.body = aes.decrypt_body(response.body)
             return response
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/json':
             data = json.loads(response.text)
@@ -100,12 +92,6 @@ class Z51ZHYBookDownloaderMiddleware(RetryMiddleware):
 
 class WQXUETANGBookDownloaderMiddleware(RetryMiddleware):
     def process_response(self, request, response, spider):
-        # Called with the response returned from the downloader.
-
-        # Must either;
-        # - return a Response object
-        # - return a Request object
-        # - or raise IgnoreRequest
         headers = response.headers
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/pdf':
             return response

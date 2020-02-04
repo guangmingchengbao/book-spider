@@ -461,7 +461,6 @@ class AESCipher:
 
         with open(in_filename, 'rb') as infile:
             with open(out_filename, 'wb') as outfile:
-                outfile.write(struct.pack('<Q', filesize))
                 while True:
                     chunk = infile.read(chunksize)
                     if len(chunk) == 0:
