@@ -76,10 +76,9 @@ class Z51ZHYBookDownloaderMiddleware(RetryMiddleware):
     def process_response(self, request, response, spider):
         headers = response.headers
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/pdf':
-            author_key = self.aes.decrypt(response.meta['key'])
+            author_key = self.aes.decrypt(request.meta['key'])
             aes = AESCipher(author_key.encode('utf-8'))
-            response.body = aes.decrypt_body(response.body)
-            return response
+            return response.replace(body=aes.decrypt_body(response.body))
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/json':
             data = json.loads(response.text)
             if not data['Success']:
