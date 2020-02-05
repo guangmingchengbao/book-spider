@@ -30,8 +30,8 @@ class Z51zhySpider(scrapy.Spider):
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
         }
         url = 'http://yd.51zhy.cn/ebook/web/search/search4HomePage'
-        # total = 20562
-        total = 15
+        total = 20600
+        # total = 15
         size = 15
         max_page = int(total / size) + 1
 
