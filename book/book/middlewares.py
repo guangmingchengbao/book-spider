@@ -92,13 +92,16 @@ class Z51ZHYBookDownloaderMiddleware(RetryMiddleware):
 class WQXUETANGBookDownloaderMiddleware(RetryMiddleware):
     def process_response(self, request, response, spider):
         headers = response.headers
-        if 'Content-Type' in headers and headers['Content-Type'] == b'application/pdf':
+        if 'Content-Type' in headers and headers['Content-Type'] == b'image/jpeg':
             return response
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/json':
             data = json.loads(response.text)
-            if not data['Success']:
-                return self._retry(request, data['Description'], spider)
-            return response
-        if 'Content-Type' in headers and headers['Content-Type'] == b'text/html;charset=utf-8':
+            if data['errcode'] == 3001:
+                return self.login()
+            elif data['errcode'] != 0:
+                return self._retry(request, data['errmsg'], spider)
             return response
         return response
+    
+    def login(self):
+        pass

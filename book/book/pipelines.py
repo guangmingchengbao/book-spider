@@ -7,8 +7,7 @@
 
 from scrapy.exceptions import DropItem
 from scrapy.pipelines.files import FilesPipeline
-import scrapy
-import re
+import scrapy, re, jwt, time
 
 
 class CMANUFBookPipeline(object):
@@ -39,23 +38,12 @@ class CMANUFBookPDFPipeline(FilesPipeline):
             yield scrapy.Request(file_url, headers=headers)
 
 
-class Z51ZHYBookPipeline(object):
-    def process_item(self, item, spider):
-        if re.match(r'^(.+)\/Cover\/(.+)_Cover[0-9].jpg$', item['img']) is not None:
-            item['file_urls'] = [re.sub(r'^(.+)\/Cover\/(.+)_Cover[0-9].jpg$', r'\1/PDF/\2_2.pdf', item['img'])]
-            item['files'] = []
-            return item
-        else:
-            raise DropItem('Missing pdf {} {}'.format(item['id'], item['name']))
-
-
 class Z51ZHYBookPDFPipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
             'User-Agent': 'PostmanRuntime/7.22.0',
             'Accept': '*/*',
             'Cache-Control': 'no-cache',
-            # 'Host': 'yypt-sw.oss-cn-beijing.aliyuncs.com',
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
         }
@@ -66,26 +54,29 @@ class Z51ZHYBookPDFPipeline(FilesPipeline):
             yield scrapy.Request(file_url, meta=meta, headers=headers)
 
 
-class WQXUETANGBookPipeline(object):
+class WQXUETANGBookPDFPipeline(object):
     def process_item(self, item, spider):
-        if re.match(r'^(.+)\/Cover\/(.+)_Cover[0-9].jpg$', item['img']) is not None:
-            item['file_urls'] = [re.sub(r'^(.+)\/Cover\/(.+)_Cover[0-9].jpg$', r'\1/PDF/\2_2.pdf', item['img'])]
-            item['files'] = []
-            return item
-        else:
-            raise DropItem('Missing pdf {} {}'.format(item['id'], item['name']))
+        return item
 
 
-class WQXUETANGBookPDFPipeline(FilesPipeline):
+class WQXUETANGBookImagePipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
             'User-Agent': 'PostmanRuntime/7.22.0',
             'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7,zh-TW;q=0.6',
-            'Host': 'cmpebooks.s3.cn-north-1.amazonaws.com.cn',
             'Connection': 'keep-alive',
-            'Referer': 'https://cmpebooks.s3.cn-north-1.amazonaws.com.cn/pdfReader/generic/build/pdf.worker.js'
+            'Referer': 'https://lib-nuanxin.wqxuetang.com/read/pdf/{}'.format(item['id'])        
         }
-        for file_url in item['file_urls']:
-            yield scrapy.Request(file_url, headers=headers)
+        for page in item['file_urls']:
+            cur_time = time.time()
+            token = jwt.encode({
+                "p": page,
+                "t": int(cur_time*1000),
+                "b": str(item['id']),
+                "w": 1000,
+                "k": json.dumps(item['key']),
+                "iat": int(cur_time)
+            }, 'g0NnWdSE8qEjdMD8a1aq12qEYphwErKctvfd3IktWHWiOBpVsgkecur38aBRPn2w', algorithm='HS256').decode('ascii')
+            yield scrapy.Request('https://lib-nuanxin.wqxuetang.com/page/img/{}/{}?k={}'.format(item['id'], page, token), headers=headers)

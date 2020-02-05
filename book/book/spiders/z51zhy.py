@@ -12,7 +12,6 @@ class Z51zhySpider(scrapy.Spider):
             'book.middlewares.Z51ZHYBookDownloaderMiddleware': 543,
         },
         'ITEM_PIPELINES': {
-            # 'book.pipelines.Z51ZHYBookPipeline': 300,
             'book.pipelines.Z51ZHYBookPDFPipeline': 600
         },
         'FILES_STORE': 'z51zhy/'

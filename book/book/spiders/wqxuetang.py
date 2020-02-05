@@ -10,7 +10,7 @@ class WqxuetangSpider(scrapy.Spider):
             'book.middlewares.WQXUETANGBookDownloaderMiddleware': 543,
         },
         'ITEM_PIPELINES': {
-            'book.pipelines.WQXUETANGBookPipeline': 300,
+            'book.pipelines.WQXUETANGBookImagePipeline': 300,
             'book.pipelines.WQXUETANGBookPDFPipeline': 600
         },
         'FILES_STORE': 'wqxuetang/'
@@ -28,7 +28,7 @@ class WqxuetangSpider(scrapy.Spider):
             'Upgrade-Insecure-Requests': '1',
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
         }
-        url = 'https://lib-nuanxin.wqxuetang.com/v1/search/inithomedata?type=&size=10&pn=1'
+        url = 'https://lib-nuanxin.wqxuetang.com/v1/search/inithomedata'
         # total = 4300
         total = 10
         size = 10
@@ -38,16 +38,40 @@ class WqxuetangSpider(scrapy.Spider):
             yield scrapy.Request(url='{}?size={}&pn={}'.format(url, size, i), headers=headers, callback=self.parse)
 
     def parse(self, response):
+        url = 'https://lib-nuanxin.wqxuetang.com/v1/read/k'
         data = json.loads(response.text)
         bs = data['data']['list']
         for b in bs:
-            book = BookItem()
-            book['img'] = b['coverurl']
-            book['price'] = b['price']
-            book['name'] = b['name']
-            book['publishdate'] = b['pubdate']
-            book['id'] = b['numid']
-            book['writer'] = b['author']
-            book['file_urls'] = ['']
-            book['files'] = []
-            yield book
+            meta = {
+                'id': b['numid'],
+                'author': b['author'],
+                'pubdate': b['pubdate']
+            }
+            yield response.follow(url='{}?bid={}'.format(url, b['numid']), meta=meta, callback=self.parse_authorize)
+
+    def parse_authorize(self, response):
+        url = 'https://lib-nuanxin.wqxuetang.com/v1/read/initread'
+        data = json.loads(response.text)
+        o = data['data']
+        meta = {
+            'id': response.meta['id'],
+            'author': response.meta['author'],
+            'pubdate': response.meta['pubdate'],
+            'key': o
+        }
+        yield response.follow(url='{}?bid={}'.format(url, response.meta['id']), meta=meta, callback=self.parse_detail)
+
+    def parse_detail(self, response):
+        data = json.loads(response.text)
+        o = data['data']
+        book = BookItem()
+        book['img'] = o['coverurl']
+        book['price'] = o['price']
+        book['name'] = o['name']
+        book['publishdate'] = response.meta['pubdate']
+        book['id'] = response.meta['id']
+        book['writer'] = response.meta['author']
+        book['file_urls'] = [i for i in o['pages']]
+        book['files'] = []
+        book['key'] = response.meta['key']
+        yield book

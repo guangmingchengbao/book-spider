@@ -3,7 +3,19 @@ from Crypto.Cipher import AES
 import os, random, struct, base64, io, sys, math
 import numpy as np
 from PIL import Image, ImageStat, ImageFilter
-
+import img2pdf
+WITH_PDFRW = True
+if WITH_PDFRW:
+    try:
+        from pdfrw import PdfDict, PdfName
+    except ImportError:
+        PdfDict = img2pdf.MyPdfDict
+        PdfName = img2pdf.MyPdfName
+        WITH_PDFRW = False
+else:
+    PdfDict = img2pdf.MyPdfDict
+    PdfName = img2pdf.MyPdfName
+    
 
 class AESCipher:
 
@@ -159,3 +171,187 @@ class ImageCompress:
                 return buf.getvalue(), 'PNG'
         else:
             return out_data, out_format
+
+
+class PDFGenerator:
+    def generate_pdf_outline(pdf, contents, parent=None):
+        if parent is None:
+            parent = PdfDict(indirect=True)
+        if not contents:
+            return parent
+        first = prev = None
+        for k, row in enumerate(contents):
+            try:
+                page = pdf.writer.pagearray[int(row['pnum'])-1]
+            except IndexError:
+                # bad bookmark
+                continue
+            bookmark = PdfDict(
+                Parent=parent,
+                Title=row['label'],
+                A=PdfDict(
+                    D=[page, PdfName.Fit],
+                    S=PdfName.GoTo
+                ),
+                indirect=True
+            )
+            children = row.get('children')
+            if children:
+                bookmark = generate_pdf_outline(pdf, children, bookmark)
+            if first:
+                bookmark[PdfName.Prev] = prev
+                prev[PdfName.Next] = bookmark
+            else:
+                first = bookmark
+            prev = bookmark
+        parent[PdfName.Count] = k + 1
+        parent[PdfName.First] = first
+        parent[PdfName.Last] = prev
+        return parent
+
+
+    def pdf_convert(*images, **kwargs):
+        _default_kwargs = dict(
+            title=None,
+            author=None,
+            creator=None,
+            producer=None,
+            creationdate=None,
+            moddate=None,
+            subject=None,
+            keywords=None,
+            colorspace=None,
+            contents=None,
+            nodate=False,
+            layout_fun=img2pdf.default_layout_fun,
+            viewer_panes=None,
+            viewer_initial_page=None,
+            viewer_magnification=None,
+            viewer_page_layout=None,
+            viewer_fit_window=False,
+            viewer_center_window=False,
+            viewer_fullscreen=False,
+            with_pdfrw=True,
+            first_frame_only=False,
+            allow_oversized=True,
+        )
+        for kwname, default in _default_kwargs.items():
+            if kwname not in kwargs:
+                kwargs[kwname] = default
+
+        pdf = img2pdf.pdfdoc(
+            "1.3",
+            kwargs["title"],
+            kwargs["author"],
+            kwargs["creator"],
+            kwargs["producer"],
+            kwargs["creationdate"],
+            kwargs["moddate"],
+            kwargs["subject"],
+            kwargs["keywords"],
+            kwargs["nodate"],
+            kwargs["viewer_panes"],
+            kwargs["viewer_initial_page"],
+            kwargs["viewer_magnification"],
+            kwargs["viewer_page_layout"],
+            kwargs["viewer_fit_window"],
+            kwargs["viewer_center_window"],
+            kwargs["viewer_fullscreen"],
+            kwargs["with_pdfrw"],
+        )
+
+        # backwards compatibility with older img2pdf versions where the first
+        # argument to the function had to be given as a list
+        if len(images) == 1:
+            # if only one argument was given and it is a list, expand it
+            if isinstance(images[0], (list, tuple)):
+                images = images[0]
+
+        if not isinstance(images, (list, tuple)):
+            images = [images]
+
+        for img in images:
+            # img is allowed to be a path, a binary string representing image data
+            # or a file-like object (really anything that implements read())
+            try:
+                rawdata = img.read()
+            except AttributeError:
+                if not isinstance(img, (str, bytes)):
+                    raise TypeError("Neither implements read() nor is str or bytes")
+                # the thing doesn't have a read() function, so try if we can treat
+                # it as a file name
+                try:
+                    with open(img, "rb") as f:
+                        rawdata = f.read()
+                except Exception:
+                    # whatever the exception is (string could contain NUL
+                    # characters or the path could just not exist) it's not a file
+                    # name so we now try treating it as raw image content
+                    rawdata = img
+
+            for (
+                color,
+                ndpi,
+                imgformat,
+                imgdata,
+                imgwidthpx,
+                imgheightpx,
+                palette,
+                inverted,
+                depth,
+                rotation,
+            ) in img2pdf.read_images(rawdata, kwargs["colorspace"], kwargs["first_frame_only"]):
+                pagewidth, pageheight, imgwidthpdf, imgheightpdf = kwargs["layout_fun"](
+                    imgwidthpx, imgheightpx, ndpi
+                )
+
+                userunit = None
+                if pagewidth < 3.00 or pageheight < 3.00:
+                    logging.warning(
+                        "pdf width or height is below 3.00 - too " "small for some viewers!"
+                    )
+                elif pagewidth > 14400.0 or pageheight > 14400.0:
+                    if kwargs["allow_oversized"]:
+                        userunit = img2pdf.find_scale(pagewidth, pageheight)
+                        pagewidth /= userunit
+                        pageheight /= userunit
+                        imgwidthpdf /= userunit
+                        imgheightpdf /= userunit
+                    else:
+                        raise img2pdf.PdfTooLargeError(
+                            "pdf width or height must not exceed 200 inches."
+                        )
+                # the image is always centered on the page
+                imgxpdf = (pagewidth - imgwidthpdf) / 2.0
+                imgypdf = (pageheight - imgheightpdf) / 2.0
+                pdf.add_imagepage(
+                    color,
+                    imgwidthpx,
+                    imgheightpx,
+                    imgformat,
+                    imgdata,
+                    imgwidthpdf,
+                    imgheightpdf,
+                    imgxpdf,
+                    imgypdf,
+                    pagewidth,
+                    pageheight,
+                    userunit,
+                    palette,
+                    inverted,
+                    depth,
+                    rotation,
+                )
+
+        if kwargs['contents']:
+            if pdf.with_pdfrw:
+                catalog = pdf.writer.trailer.Root
+            else:
+                catalog = pdf.writer.catalog
+            catalog[PdfName.Outlines] = generate_pdf_outline(pdf, kwargs['contents'])
+
+        if kwargs["outputstream"]:
+            pdf.tostream(kwargs["outputstream"])
+            return
+
+        return pdf.tostring()
