@@ -7,7 +7,7 @@
 
 from scrapy.exceptions import DropItem
 from scrapy.pipelines.files import FilesPipeline
-import scrapy, re, jwt, time
+import scrapy, re, jwt, time, hashlib, json
 
 
 class CMANUFBookPipeline(object):
@@ -54,11 +54,6 @@ class Z51ZHYBookPDFPipeline(FilesPipeline):
             yield scrapy.Request(file_url, meta=meta, headers=headers)
 
 
-class WQXUETANGBookPDFPipeline(object):
-    def process_item(self, item, spider):
-        return item
-
-
 class WQXUETANGBookImagePipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
@@ -69,14 +64,14 @@ class WQXUETANGBookImagePipeline(FilesPipeline):
             'Connection': 'keep-alive',
             'Referer': 'https://lib-nuanxin.wqxuetang.com/read/pdf/{}'.format(item['id'])        
         }
-        for page in item['file_urls']:
+        for i, file_url in enumerate(item['file_urls'], start=1):
             cur_time = time.time()
             token = jwt.encode({
-                "p": page,
+                "p": i,
                 "t": int(cur_time*1000),
                 "b": str(item['id']),
                 "w": 1000,
                 "k": json.dumps(item['key']),
                 "iat": int(cur_time)
             }, 'g0NnWdSE8qEjdMD8a1aq12qEYphwErKctvfd3IktWHWiOBpVsgkecur38aBRPn2w', algorithm='HS256').decode('ascii')
-            yield scrapy.Request('https://lib-nuanxin.wqxuetang.com/page/img/{}/{}?k={}'.format(item['id'], page, token), headers=headers)
+            yield scrapy.Request('{}?k={}'.format(file_url, token), headers=headers)

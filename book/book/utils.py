@@ -1,9 +1,10 @@
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import AES
-import os, random, struct, base64, io, sys, math
+import os, random, struct, base64, io, sys, math, requests, img2pdf, re
 import numpy as np
 from PIL import Image, ImageStat, ImageFilter
-import img2pdf
+from urllib.parse import unquote
+
 WITH_PDFRW = True
 if WITH_PDFRW:
     try:
@@ -15,7 +16,7 @@ if WITH_PDFRW:
 else:
     PdfDict = img2pdf.MyPdfDict
     PdfName = img2pdf.MyPdfName
-    
+
 
 class AESCipher:
 
@@ -355,3 +356,21 @@ class PDFGenerator:
             return
 
         return pdf.tostring()
+
+wqxuetang_cookies = {}
+def update_wqxuetang_cookies():
+    with requests.Session() as s:
+        global wqxuetang_cookies
+        url = 'http://open.izhixue.cn/checklogin?response_type=code&client_id=wqxuetang&redirect_uri=https%3A%2F%2Fwww.wqxuetang.com%2Fv1%2Flogin%2Fcallbackwq&scope=userinfo&state=https%3A%2F%2Flib-nuanxin.wqxuetang.com%2F%23%2F'
+        r = s.post(url, data = { 'account': 'zomco@sina.com', 'password': 'w42ndGF0115' })
+        data = r.json()
+        if data['code'] != '0':
+            print('Get code failed: {}'.format(data['message']))
+            return ''
+        s.get(unquote(data['data']), verify=False)
+        wqxuetang_cookies = requests.utils.dict_from_cookiejar(s.cookies)
+
+def get_wqxuetang_cookies():
+    if not 'PHPSESSID' in wqxuetang_cookies:
+        update_wqxuetang_cookies()
+    return wqxuetang_cookies

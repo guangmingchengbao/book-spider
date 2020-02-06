@@ -8,7 +8,7 @@
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
 import json
 from scrapy import signals
-from .utils import AESCipher
+from .utils import AESCipher, update_wqxuetang_cookies
 
 class BookSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
@@ -97,11 +97,9 @@ class WQXUETANGBookDownloaderMiddleware(RetryMiddleware):
         if 'Content-Type' in headers and headers['Content-Type'] == b'application/json':
             data = json.loads(response.text)
             if data['errcode'] == 3001:
-                return self.login()
+                update_wqxuetang_cookies()
+                return self._retry(request, data['errmsg'], spider)
             elif data['errcode'] != 0:
                 return self._retry(request, data['errmsg'], spider)
             return response
         return response
-    
-    def login(self):
-        pass
