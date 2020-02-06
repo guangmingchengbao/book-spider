@@ -1,6 +1,6 @@
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import AES
-import os, random, struct, base64, io, sys, math, requests, img2pdf, re
+import os, random, struct, base64, io, sys, math, requests, img2pdf, re, hashlib, os
 import numpy as np
 from PIL import Image, ImageStat, ImageFilter
 from urllib.parse import unquote
@@ -74,107 +74,57 @@ class AESCipher:
         return cipher.decrypt(body)
 
 
-class ImageCompress:
+class WQXueTang:
+    session = requests.Session()
     _PIXWEIGHT = np.concatenate((np.arange(128, 0, -1), np.arange(0, 128))) / 128
 
-    def otsu_threshold(self, hist):
-        total = sum(hist)
-        sumB = 0
-        wB = 0
-        maximum = 0.0
-        sum1 = np.dot(np.arange(256), hist)
-        for i in range(256):
-            wB += hist[i]
-            wF = total - wB
-            if wB == 0 or wF == 0:
-                continue
-            sumB += i * hist[i]
-            mF = (sum1 - sumB) / wF
-            between = wB * wF * ((sumB / wB) - mF) * ((sumB / wB) - mF)
-            if between >= maximum:
-                level = i + 1
-                maximum = between
-        return level
+    def __init__(self):
+        super().__init__()
 
-    def auto_downgrade(self, pil_img, thumb_size=128, grey_cutoff=1, bw_ratio=0.99):
-        mode = pil_img.mode
-        if mode == '1' and mode not in ('L', 'LA', 'RGB', 'RGBA'):
-            # ignore special modes
-            return pil_img
-        elif mode == 'P':
-            pil_img = pil_img.convert('RGB')
-        elif mode == 'PA':
-            pil_img = pil_img.convert('RGBA')
-        bands = pil_img.getbands()
-        alpha_band = False
-        if bands[-1] == 'A':
-            alpha_band = True
-            if all(x == 255 for x in pil_img.getdata(len(bands) - 1)):
-                alpha_band = False
-        if bands[:3] == ('R', 'G', 'B'):
-            thumb = pil_img.resize((thumb_size,thumb_size), resample=Image.BILINEAR)
-            pixels = np.array(thumb.getdata(), dtype=float)[:, :3]
-            pixels_max = np.max(pixels, axis=1)
-            pixels_min = np.min(pixels, axis=1)
-            val = np.mean(pixels_max - pixels_min)
-            if val > grey_cutoff:
-                if bands[-1] == 'A' and not alpha_band:
-                    return pil_img.convert('RGB')
-                else:
-                    return pil_img
-            if alpha_band:
-                return pil_img.convert('LA')
-            else:
-                pil_img = pil_img.convert('L')
-        if alpha_band:
-            return pil_img
-        hist = pil_img.histogram()[:256]
-        if np.average(self._PIXWEIGHT, weights=hist) > bw_ratio:
-            #threshold = self.otsu_threshold(hist)
-            #pil_img = pil_img.point(lambda p: p > threshold and 255)
-            return pil_img.convert('1', dither=Image.NONE)
-        if bands[-1] == 'A':
-            return pil_img.convert('L')
-        return pil_img
+    @classmethod
+    def login():
+        url = 'http://open.izhixue.cn/checklogin?response_type=code&client_id=wqxuetang&redirect_uri=https%3A%2F%2Fwww.wqxuetang.com%2Fv1%2Flogin%2Fcallbackwq&scope=userinfo&state=https%3A%2F%2Flib-nuanxin.wqxuetang.com%2F%23%2F'
+        r = self.session.post(url, data = { 'account': 'zomco@sina.com', 'password': 'w42ndGF0115' })
+        data = r.json()
+        if data['code'] != '0':
+            print('Login failed: {}({})'.format(data['message'], data['code']))
+            return False
+        self.session.get(unquote(data['data']), verify=False)
+        return True
 
-    def auto_encode(self, fp, quality=95, thumb_size=128, grey_cutoff=1, bw_ratio=0.99):
-        if isinstance(fp, str):
-            with open(fp, 'rb') as f:
-                orig_data = f.read()
-        elif isinstance(fp, bytes):
-            orig_data = fp
-        else:
-            orig_data = fp.read()
-        orig_buf = io.BytesIO(orig_data)
-        orig_size = len(orig_data)
-        im = Image.open(orig_buf)
-        out_im = auto_downgrade(im, thumb_size, grey_cutoff, bw_ratio)
-        buf = io.BytesIO()
-        if out_im.mode == '1':
-            out_im.save(buf, 'TIFF', compression='group4')
-            return buf.getvalue(), 'TIFF'
-        elif out_im.mode[0] == 'L' or out_im.mode[-1] == 'A':
-            out_im.save(buf, 'PNG', optimize=True)
-            return buf.getvalue(), 'PNG'
-        if im.format.startswith('JPEG'):
-            out_format = 'PNG'
-            out_im.save(buf, 'PNG', optimize=True)
-        else:
-            out_format = 'JPEG'
-            out_im.convert('RGB').save(buf, 'JPEG', quality=95, optimize=True)
-        out_data = buf.getvalue()
-        if len(out_data) > orig_size:
-            if out_im.mode == im.mode:
-                return orig_data, im.format
-            else:
-                buf = io.BytesIO()
-                out_im.save(buf, 'PNG', optimize=True)
-                return buf.getvalue(), 'PNG'
-        else:
-            return out_data, out_format
-
-
-class PDFGenerator:
+    @classmethod
+    def get_cookies():
+        cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
+        if not 'PHPSESSID' in cookies:
+            self.login()
+        return cookies
+    
+    @classmethod
+    def generate_pdf(item):
+        cookies = requests.utils.dict_from_cookiejar(s.cookies)
+        if not 'PHPSESSID' in cookies:
+            self.login()
+        url = 'https://lib-nuanxin.wqxuetang.com/v1/book/catatree?bid={}'.format(item['id'])
+        r = self.session.get(url, verify=False)
+        data = r.json()
+        if data['code'] != '0':
+            print('Fetch tree failed: {}({})'.format(data['message'], data['code']))
+            return False
+        media_guid = hashlib.sha1(to_bytes('https://lib-nuanxin.wqxuetang.com/page/img/{}'.format(item['id']))).hexdigest()
+        media_base = 'wqxuetang/extra'
+        if not os.path.exists(media_base):
+            os.makedirs(media_base)
+        with open('{}/{}.pdf'.format(media_base, media_guid), "wb") as f:
+            self.pdf_convert(
+                ['{}/{}'.format(media_base, file['path']) for file item['files']],
+                title=item['name'],
+                author=item['author'],
+                with_pdfrw=True,
+                contents=data['data'],
+                outputstream=f
+            )
+        return True
+    
     def generate_pdf_outline(pdf, contents, parent=None):
         if parent is None:
             parent = PdfDict(indirect=True)
@@ -209,7 +159,6 @@ class PDFGenerator:
         parent[PdfName.First] = first
         parent[PdfName.Last] = prev
         return parent
-
 
     def pdf_convert(*images, **kwargs):
         _default_kwargs = dict(
@@ -349,7 +298,7 @@ class PDFGenerator:
                 catalog = pdf.writer.trailer.Root
             else:
                 catalog = pdf.writer.catalog
-            catalog[PdfName.Outlines] = generate_pdf_outline(pdf, kwargs['contents'])
+            catalog[PdfName.Outlines] = self.generate_pdf_outline(pdf, kwargs['contents'])
 
         if kwargs["outputstream"]:
             pdf.tostream(kwargs["outputstream"])
@@ -357,20 +306,98 @@ class PDFGenerator:
 
         return pdf.tostring()
 
-wqxuetang_cookies = {}
-def update_wqxuetang_cookies():
-    with requests.Session() as s:
-        global wqxuetang_cookies
-        url = 'http://open.izhixue.cn/checklogin?response_type=code&client_id=wqxuetang&redirect_uri=https%3A%2F%2Fwww.wqxuetang.com%2Fv1%2Flogin%2Fcallbackwq&scope=userinfo&state=https%3A%2F%2Flib-nuanxin.wqxuetang.com%2F%23%2F'
-        r = s.post(url, data = { 'account': 'zomco@sina.com', 'password': 'w42ndGF0115' })
-        data = r.json()
-        if data['code'] != '0':
-            print('Get code failed: {}'.format(data['message']))
-            return ''
-        s.get(unquote(data['data']), verify=False)
-        wqxuetang_cookies = requests.utils.dict_from_cookiejar(s.cookies)
+    def otsu_threshold(self, hist):
+        total = sum(hist)
+        sumB = 0
+        wB = 0
+        maximum = 0.0
+        sum1 = np.dot(np.arange(256), hist)
+        for i in range(256):
+            wB += hist[i]
+            wF = total - wB
+            if wB == 0 or wF == 0:
+                continue
+            sumB += i * hist[i]
+            mF = (sum1 - sumB) / wF
+            between = wB * wF * ((sumB / wB) - mF) * ((sumB / wB) - mF)
+            if between >= maximum:
+                level = i + 1
+                maximum = between
+        return level
 
-def get_wqxuetang_cookies():
-    if not 'PHPSESSID' in wqxuetang_cookies:
-        update_wqxuetang_cookies()
-    return wqxuetang_cookies
+    def auto_downgrade(self, pil_img, thumb_size=128, grey_cutoff=1, bw_ratio=0.99):
+        mode = pil_img.mode
+        if mode == '1' and mode not in ('L', 'LA', 'RGB', 'RGBA'):
+            # ignore special modes
+            return pil_img
+        elif mode == 'P':
+            pil_img = pil_img.convert('RGB')
+        elif mode == 'PA':
+            pil_img = pil_img.convert('RGBA')
+        bands = pil_img.getbands()
+        alpha_band = False
+        if bands[-1] == 'A':
+            alpha_band = True
+            if all(x == 255 for x in pil_img.getdata(len(bands) - 1)):
+                alpha_band = False
+        if bands[:3] == ('R', 'G', 'B'):
+            thumb = pil_img.resize((thumb_size,thumb_size), resample=Image.BILINEAR)
+            pixels = np.array(thumb.getdata(), dtype=float)[:, :3]
+            pixels_max = np.max(pixels, axis=1)
+            pixels_min = np.min(pixels, axis=1)
+            val = np.mean(pixels_max - pixels_min)
+            if val > grey_cutoff:
+                if bands[-1] == 'A' and not alpha_band:
+                    return pil_img.convert('RGB')
+                else:
+                    return pil_img
+            if alpha_band:
+                return pil_img.convert('LA')
+            else:
+                pil_img = pil_img.convert('L')
+        if alpha_band:
+            return pil_img
+        hist = pil_img.histogram()[:256]
+        if np.average(self._PIXWEIGHT, weights=hist) > bw_ratio:
+            #threshold = self.otsu_threshold(hist)
+            #pil_img = pil_img.point(lambda p: p > threshold and 255)
+            return pil_img.convert('1', dither=Image.NONE)
+        if bands[-1] == 'A':
+            return pil_img.convert('L')
+        return pil_img
+
+    def auto_encode(self, fp, quality=95, thumb_size=128, grey_cutoff=1, bw_ratio=0.99):
+        if isinstance(fp, str):
+            with open(fp, 'rb') as f:
+                orig_data = f.read()
+        elif isinstance(fp, bytes):
+            orig_data = fp
+        else:
+            orig_data = fp.read()
+        orig_buf = io.BytesIO(orig_data)
+        orig_size = len(orig_data)
+        im = Image.open(orig_buf)
+        out_im = auto_downgrade(im, thumb_size, grey_cutoff, bw_ratio)
+        buf = io.BytesIO()
+        if out_im.mode == '1':
+            out_im.save(buf, 'TIFF', compression='group4')
+            return buf.getvalue(), 'TIFF'
+        elif out_im.mode[0] == 'L' or out_im.mode[-1] == 'A':
+            out_im.save(buf, 'PNG', optimize=True)
+            return buf.getvalue(), 'PNG'
+        if im.format.startswith('JPEG'):
+            out_format = 'PNG'
+            out_im.save(buf, 'PNG', optimize=True)
+        else:
+            out_format = 'JPEG'
+            out_im.convert('RGB').save(buf, 'JPEG', quality=95, optimize=True)
+        out_data = buf.getvalue()
+        if len(out_data) > orig_size:
+            if out_im.mode == im.mode:
+                return orig_data, im.format
+            else:
+                buf = io.BytesIO()
+                out_im.save(buf, 'PNG', optimize=True)
+                return buf.getvalue(), 'PNG'
+        else:
+            return out_data, out_format

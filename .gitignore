@@ -130,9 +130,9 @@ dmypy.json
 
 # Download files
 cmanuf/
-cmanuf*
+cmanuf.json
 z51zhy/
-z51zhy*
+z51zhy.json
 wqxuetang/
-wqxuetang*
+wqxuetang.json
 

@@ -8,6 +8,7 @@
 from scrapy.exceptions import DropItem
 from scrapy.pipelines.files import FilesPipeline
 import scrapy, re, jwt, time, hashlib, json
+from .utils import WQXueTang
 
 
 class CMANUFBookPipeline(object):
@@ -20,7 +21,7 @@ class CMANUFBookPipeline(object):
             item['files'] = []
             return item
         else:
-            raise DropItem('Missing pdf {} {}'.format(item['id'], item['name']))
+            raise DropItem('Missing pdf url {} {}'.format(item['id'], item['name']))
 
 
 class CMANUFBookPDFPipeline(FilesPipeline):
@@ -52,6 +53,14 @@ class Z51ZHYBookPDFPipeline(FilesPipeline):
         }
         for file_url in item['file_urls']:
             yield scrapy.Request(file_url, meta=meta, headers=headers)
+
+
+class WQXUETANGBookPDFPipeline(object):
+    def process_item(self, item, spider):
+        if WQXueTang.generate_pdf(item):
+            return item
+        else:
+            raise DropItem('Missing pdf images {} {}'.format(item['id'], item['name']))
 
 
 class WQXUETANGBookImagePipeline(FilesPipeline):

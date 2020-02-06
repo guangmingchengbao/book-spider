@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import scrapy
-from ..utils import get_wqxuetang_cookies
-
+import json
+from ..utils import WQXueTang
+from ..items import BookItem
 
 class WqxuetangSpider(scrapy.Spider):
     name = 'wqxuetang'
@@ -11,14 +12,14 @@ class WqxuetangSpider(scrapy.Spider):
             'book.middlewares.WQXUETANGBookDownloaderMiddleware': 543,
         },
         'ITEM_PIPELINES': {
-            'book.pipelines.WQXUETANGBookPDFPipeline': 300
+            'book.pipelines.WQXUETANGBookImagePipeline': 300,
+            'book.pipelines.WQXUETANGBookPDFPipeline': 600
         },
         'FILES_STORE': 'wqxuetang/'
     }
 
     def start_requests(self):
         headers = {
-            'PHPSESSID': 'ge3sdklbkke33q4j3foqmpkbte',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7,zh-TW;q=0.6',
@@ -35,7 +36,7 @@ class WqxuetangSpider(scrapy.Spider):
         max_page = int(total / size) + 1
 
         for i in range(1, max_page):
-            yield scrapy.Request(url='{}?size={}&pn={}'.format(url, size, i), headers=headers, cookies=get_wqxuetang_cookies(), callback=self.parse)
+            yield scrapy.Request(url='{}?size={}&pn={}'.format(url, size, i), headers=headers, cookies=WQXueTang.get_cookies(), callback=self.parse)
 
     def parse(self, response):
         url = 'https://lib-nuanxin.wqxuetang.com/v1/read/k'
@@ -47,7 +48,7 @@ class WqxuetangSpider(scrapy.Spider):
                 'author': b['author'],
                 'pubdate': b['pubdate']
             }
-            yield response.follow(url='{}?bid={}'.format(url, b['numid']), meta=meta, cookies=get_wqxuetang_cookies(), callback=self.parse_authorize)
+            yield response.follow(url='{}?bid={}'.format(url, b['numid']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_authorize)
 
     def parse_authorize(self, response):
         url = 'https://lib-nuanxin.wqxuetang.com/v1/read/initread'
@@ -59,7 +60,7 @@ class WqxuetangSpider(scrapy.Spider):
             'pubdate': response.meta['pubdate'],
             'key': o
         }
-        yield response.follow(url='{}?bid={}'.format(url, response.meta['id']), meta=meta, cookies=get_wqxuetang_cookies(), callback=self.parse_detail)
+        yield response.follow(url='{}?bid={}'.format(url, response.meta['id']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_detail)
 
     def parse_detail(self, response):
         data = json.loads(response.text)
@@ -71,7 +72,7 @@ class WqxuetangSpider(scrapy.Spider):
         book['publishdate'] = response.meta['pubdate']
         book['id'] = response.meta['id']
         book['writer'] = response.meta['author']
-        book['file_urls'] = [ 'https://lib-nuanxin.wqxuetang.com/page/img/{}/{}'.format(response.meta['id'], i) for i in o['pages']]
+        book['file_urls'] = [ 'https://lib-nuanxin.wqxuetang.com/page/img/{}/{}'.format(response.meta['id'], i) for i in range(1, int(o['pages']))]
         book['files'] = []
         book['key'] = response.meta['key']
         yield book
