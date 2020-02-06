@@ -57,7 +57,9 @@ class Z51ZHYBookPDFPipeline(FilesPipeline):
 
 class WQXUETANGBookPDFPipeline(object):
     def process_item(self, item, spider):
-        if WQXueTang.generate_pdf(item):
+        ret, out = WQXueTang.generate_pdf(item)
+        if ret:
+            item['extra'] = out
             return item
         else:
             raise DropItem('Missing pdf images {} {}'.format(item['id'], item['name']))
@@ -66,11 +68,7 @@ class WQXUETANGBookPDFPipeline(object):
 class WQXUETANGBookImagePipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
-            'User-Agent': 'PostmanRuntime/7.22.0',
-            'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7,zh-TW;q=0.6',
-            'Connection': 'keep-alive',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
             'Referer': 'https://lib-nuanxin.wqxuetang.com/read/pdf/{}'.format(item['id'])        
         }
         for i, file_url in enumerate(item['file_urls'], start=1):

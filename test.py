@@ -1,3 +1,4 @@
-from book.book.utils import get_wqxuetang_cookies
+from book.book.utils import WQXueTang
 
-print(get_wqxuetang_cookies())
+print(WQXueTang.get_cookies())
+

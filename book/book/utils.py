@@ -82,7 +82,7 @@ class WQXueTang:
         super().__init__()
 
     @classmethod
-    def login():
+    def login(self):
         url = 'http://open.izhixue.cn/checklogin?response_type=code&client_id=wqxuetang&redirect_uri=https%3A%2F%2Fwww.wqxuetang.com%2Fv1%2Flogin%2Fcallbackwq&scope=userinfo&state=https%3A%2F%2Flib-nuanxin.wqxuetang.com%2F%23%2F'
         r = self.session.post(url, data = { 'account': 'zomco@sina.com', 'password': 'w42ndGF0115' })
         data = r.json()
@@ -93,14 +93,15 @@ class WQXueTang:
         return True
 
     @classmethod
-    def get_cookies():
+    def get_cookies(self):
         cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
         if not 'PHPSESSID' in cookies:
             self.login()
+            return requests.utils.dict_from_cookiejar(self.session.cookies)
         return cookies
     
     @classmethod
-    def generate_pdf(item):
+    def generate_pdf(self, item):
         cookies = requests.utils.dict_from_cookiejar(s.cookies)
         if not 'PHPSESSID' in cookies:
             self.login()
@@ -109,23 +110,24 @@ class WQXueTang:
         data = r.json()
         if data['code'] != '0':
             print('Fetch tree failed: {}({})'.format(data['message'], data['code']))
-            return False
+            return False, ''
         media_guid = hashlib.sha1(to_bytes('https://lib-nuanxin.wqxuetang.com/page/img/{}'.format(item['id']))).hexdigest()
         media_base = 'wqxuetang/extra'
+        media_out = '{}/{}.pdf'.format(media_base, media_guid)
         if not os.path.exists(media_base):
             os.makedirs(media_base)
-        with open('{}/{}.pdf'.format(media_base, media_guid), "wb") as f:
+        with open(media_out, "wb") as f:
             self.pdf_convert(
-                ['{}/{}'.format(media_base, file['path']) for file item['files']],
+                ['{}/{}'.format(media_base, file['path']) for file in item['files']],
                 title=item['name'],
                 author=item['author'],
                 with_pdfrw=True,
                 contents=data['data'],
                 outputstream=f
             )
-        return True
+        return True, media_out
     
-    def generate_pdf_outline(pdf, contents, parent=None):
+    def generate_pdf_outline(self, pdf, contents, parent=None):
         if parent is None:
             parent = PdfDict(indirect=True)
         if not contents:
@@ -160,7 +162,7 @@ class WQXueTang:
         parent[PdfName.Last] = prev
         return parent
 
-    def pdf_convert(*images, **kwargs):
+    def pdf_convert(self, *images, **kwargs):
         _default_kwargs = dict(
             title=None,
             author=None,
