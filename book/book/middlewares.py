@@ -6,7 +6,7 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
-import json
+import json, time
 from scrapy import signals
 from .utils import AESCipher, WQXueTang
 
@@ -79,9 +79,11 @@ class Z51ZHYBookDownloaderMiddleware(RetryMiddleware):
             author_key = self.aes.decrypt(request.meta['key'])
             aes = AESCipher(author_key.encode('utf-8'))
             return response.replace(body=aes.decrypt_body(response.body))
-        if 'Content-Type' in headers and headers['Content-Type'] == b'application/json':
+        if 'Content-Type' in headers and headers['Content-Type'] == b'application/json; charset=utf-8':
             data = json.loads(response.text)
             if not data['Success']:
+                if data['Code'] == 21:
+                    time.sleep(3)
                 return self._retry(request, data['Description'], spider)
             return response
         if 'Content-Type' in headers and headers['Content-Type'] == b'text/html;charset=utf-8':

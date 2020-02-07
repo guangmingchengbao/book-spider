@@ -14,7 +14,8 @@ class Z51zhySpider(scrapy.Spider):
         'ITEM_PIPELINES': {
             'book.pipelines.Z51ZHYBookPDFPipeline': 300
         },
-        'FILES_STORE': 'z51zhy/'
+        'FILES_STORE': 'z51zhy/',
+        'DOWNLOAD_DELAY': 3,
     }
 
     def start_requests(self):
@@ -40,27 +41,32 @@ class Z51zhySpider(scrapy.Spider):
     def parse(self, response):
         url = 'https://bridge.51zhy.cn/transfer/content/authorize'
         ids = response.css('ul li.ebook-item input.search_Input::attr(value)').getall()
+        meta = response.meta
         for id in ids:
-            meta = {
-                'id': id,
-            }
+            meta['id'] = id
             form = {
                 'id': id,
                 'BridgePlatformName': 'phei_yd_web',
-                'DeviceToken': 'ebookE0415F559DF90E6D52123BBB653436B2'
+                'DeviceToken': 'ebookE0415F559DF90E6D52123BBB653436B2',
+                'AppId': '3',
+                'type': 'aes'
             }
             yield scrapy.FormRequest(url=url, meta=meta, formdata=form, callback=self.parse_authorize)
     
     def parse_authorize(self, response):
         data = json.loads(response.text)
         o = data['Data']
-        meta = {
-            'id': response.meta['id'],
-            'url': o['Url'],
-            'key': o['Key']
+        meta = response.meta
+        meta['url'] = o['Url']
+        meta['key'] = o['Key']
+        url = 'https://bridge.51zhy.cn/transfer/Content/Detail?AppId=3&BridgePlatformName=phei_yd_web&id={}'.format(response.meta['id'])
+        form = {
+            'id': meta['id'],
+            'BridgePlatformName': 'phei_yd_web',
+            'DeviceToken': 'ebookE0415F559DF90E6D52123BBB653436B2',
+            'AppId': '3'
         }
-        url = 'https://bridge.51zhy.cn/transfer/Content/Detail?BridgePlatformName=phei_yd_web&id={}'.format(response.meta['id'])
-        yield response.follow(url=url, meta=meta, callback=self.parse_detail)
+        yield scrapy.FormRequest(url=url, meta=meta, formdata=form, callback=self.parse_detail)
 
     def parse_detail(self, response):
         data = json.loads(response.text)

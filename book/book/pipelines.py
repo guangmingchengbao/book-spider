@@ -27,13 +27,8 @@ class CMANUFBookPipeline(object):
 class CMANUFBookPDFPipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
-            'User-Agent': 'PostmanRuntime/7.22.0',
-            'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7,zh-TW;q=0.6',
-            'Host': 'cmpebooks.s3.cn-north-1.amazonaws.com.cn',
-            'Connection': 'keep-alive',
-            'Referer': 'https://cmpebooks.s3.cn-north-1.amazonaws.com.cn/pdfReader/generic/build/pdf.worker.js'
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
+            'Referer': 'http://cdn.cmanuf.com/pdfReader/generic/build/pdf.worker.js'
         }
         for file_url in item['file_urls']:
             yield scrapy.Request(file_url, headers=headers)

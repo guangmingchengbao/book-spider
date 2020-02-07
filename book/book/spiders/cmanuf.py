@@ -3,6 +3,8 @@ import scrapy
 import json
 from ..items import BookItem
 
+# http://cdn.cmanuf.com/books/6/978-7-111-60487-7_1-1/Cover/978-7-111-60487-7_1-1_Cover1.jpg
+# http://cdn.cmanuf.com/books/6/978-7-111-60487-7_1-1/PDF/978-7-111-60487-7_1-1_2.pdf
 class CmanufSpider(scrapy.Spider):
     name = 'cmanuf'
     allowed_domains = ['cmanuf.com']
