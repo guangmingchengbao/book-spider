@@ -94,7 +94,10 @@ class WQXUETANGBookDownloaderMiddleware(RetryMiddleware):
         headers = response.headers
         if 'Content-Type' in headers and headers['Content-Type'] == b'image/jpeg':
             return response
-        if 'Content-Type' in headers and headers['Content-Type'] == b'application/json':
+        if 'Content-Type' in headers and headers['Content-Type'] == b'text/html; charset=UTF-8':
+            if not response.text:
+                print(response.text)
+                return self._retry(request, 'Empty response body', spider)
             data = json.loads(response.text)
             if data['errcode'] == 3001:
                 WQXueTang.login()

@@ -1,4 +1,4 @@
 from book.book.utils import WQXueTang
 
-print(WQXueTang.get_cookies())
+print(WQXueTang.generate_pdf({ 'id': '3207697' }))
 

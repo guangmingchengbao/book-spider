@@ -69,9 +69,12 @@ class WQXUETANGBookImagePipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
-            'Referer': 'https://lib-nuanxin.wqxuetang.com/read/pdf/{}'.format(item['id'])        
+            'Referer': 'https://lib-nuanxin.wqxuetang.com/read/pdf/{}'.format(item['id']),
+            'sec-fetch-mode': 'no-cors',
+            'sec-fetch-site': 'same-origin'        
         }
         for i, file_url in enumerate(item['file_urls'], start=1):
+            time.sleep(0.1)
             cur_time = time.time()
             token = jwt.encode({
                 "p": i,

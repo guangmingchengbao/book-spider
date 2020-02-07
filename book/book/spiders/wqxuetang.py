@@ -39,40 +39,48 @@ class WqxuetangSpider(scrapy.Spider):
             yield scrapy.Request(url='{}?size={}&pn={}'.format(url, size, i), headers=headers, cookies=WQXueTang.get_cookies(), callback=self.parse)
 
     def parse(self, response):
-        url = 'https://lib-nuanxin.wqxuetang.com/v1/read/k'
-        data = json.loads(response.text)
-        bs = data['data']['list']
-        for b in bs:
-            meta = {
-                'id': b['numid'],
-                'author': b['author'],
-                'pubdate': b['pubdate']
-            }
-            yield response.follow(url='{}?bid={}'.format(url, b['numid']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_authorize)
-
-    def parse_authorize(self, response):
         url = 'https://lib-nuanxin.wqxuetang.com/v1/read/initread'
         data = json.loads(response.text)
-        o = data['data']
-        meta = {
-            'id': response.meta['id'],
-            'author': response.meta['author'],
-            'pubdate': response.meta['pubdate'],
-            'key': o
-        }
-        yield response.follow(url='{}?bid={}'.format(url, response.meta['id']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_detail)
+        bs = data['data']['list']
+        meta = response.meta
+        for b in bs:
+            meta['id'] = b['numid']
+            meta['author'] = b['author']
+            meta['pubdate'] = b['pubdate']
+            yield response.follow(url='{}?bid={}'.format(url, b['numid']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_initread)
 
-    def parse_detail(self, response):
+    def parse_initread(self, response):
+        url = 'https://lib-nuanxin.wqxuetang.com/v1/read/catatree'
         data = json.loads(response.text)
         o = data['data']
+        meta = response.meta
+        meta['img'] = o['coverurl']
+        meta['price'] = o['price']
+        meta['name'] = o['name']
+        meta['file_urls'] = [ 'https://lib-nuanxin.wqxuetang.com/page/img/{}/{}'.format(response.meta['id'], i) for i in range(1, int(o['pages']))]
+        yield response.follow(url='{}?bid={}'.format(url, meta['id']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_catatree)
+
+    def parse_catatree(self, response):
+        url = 'https://lib-nuanxin.wqxuetang.com/v1/read/k'
+        data = json.loads(response.text)
+        o = data['data']
+        meta = response.meta
+        meta['extra'] = o
+        yield response.follow(url='{}?bid={}'.format(url, meta['id']), meta=meta, cookies=WQXueTang.get_cookies(), callback=self.parse_k)
+
+    def parse_k(self, response):
+        data = json.loads(response.text)
+        o = data['data']
+        meta = response.meta
         book = BookItem()
-        book['img'] = o['coverurl']
-        book['price'] = o['price']
-        book['name'] = o['name']
-        book['publishdate'] = response.meta['pubdate']
-        book['id'] = response.meta['id']
-        book['writer'] = response.meta['author']
-        book['file_urls'] = [ 'https://lib-nuanxin.wqxuetang.com/page/img/{}/{}'.format(response.meta['id'], i) for i in range(1, int(o['pages']))]
+        book['img'] = meta['coverurl']
+        book['price'] = meta['price']
+        book['name'] = meta['name']
+        book['publishdate'] = meta['pubdate']
+        book['id'] = meta['id']
+        book['writer'] = meta['author']
+        book['file_urls'] = meta['file_urls']
         book['files'] = []
-        book['key'] = response.meta['key']
+        book['key'] = o
+        book['extra'] = meta['extra']
         yield book

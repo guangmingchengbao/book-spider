@@ -4,6 +4,8 @@ import os, random, struct, base64, io, sys, math, requests, img2pdf, re, hashlib
 import numpy as np
 from PIL import Image, ImageStat, ImageFilter
 from urllib.parse import unquote
+from scrapy.utils.python import to_bytes
+
 
 WITH_PDFRW = True
 if WITH_PDFRW:
@@ -97,20 +99,12 @@ class WQXueTang:
         cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
         if not 'PHPSESSID' in cookies:
             self.login()
-            return requests.utils.dict_from_cookiejar(self.session.cookies)
+            cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
+        print(cookies)
         return cookies
     
     @classmethod
     def generate_pdf(self, item):
-        cookies = requests.utils.dict_from_cookiejar(s.cookies)
-        if not 'PHPSESSID' in cookies:
-            self.login()
-        url = 'https://lib-nuanxin.wqxuetang.com/v1/book/catatree?bid={}'.format(item['id'])
-        r = self.session.get(url, verify=False)
-        data = r.json()
-        if data['code'] != '0':
-            print('Fetch tree failed: {}({})'.format(data['message'], data['code']))
-            return False, ''
         media_guid = hashlib.sha1(to_bytes('https://lib-nuanxin.wqxuetang.com/page/img/{}'.format(item['id']))).hexdigest()
         media_base = 'wqxuetang/extra'
         media_out = '{}/{}.pdf'.format(media_base, media_guid)
@@ -118,11 +112,11 @@ class WQXueTang:
             os.makedirs(media_base)
         with open(media_out, "wb") as f:
             self.pdf_convert(
-                ['{}/{}'.format(media_base, file['path']) for file in item['files']],
+                ['{}/{}'.format(media_base, n['path']) for n in item['files']],
                 title=item['name'],
                 author=item['author'],
                 with_pdfrw=True,
-                contents=data['data'],
+                contents=item['extra'],
                 outputstream=f
             )
         return True, media_out

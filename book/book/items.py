@@ -18,3 +18,4 @@ class BookItem(scrapy.Item):
     file_urls = scrapy.Field()
     files = scrapy.Field()
     key = scrapy.Field()
+    extra = scrapy.Field()
